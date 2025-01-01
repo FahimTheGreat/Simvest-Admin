@@ -1,11 +1,11 @@
-name: "Build"
+name: "Build Android"
 
 on: workflow_dispatch
 
 jobs:  
   build:      
-    name: Build & Release 
-    runs-on: macos-latest 
+    name: Build Android
+    runs-on: ubuntu-latest
 
     steps:
         #1 Checkout Repository
@@ -29,7 +29,6 @@ jobs:
         #4 Install Dependencies
       - name: Install Dependencies
         run: flutter pub get
-
         
        #6 Building APK
       - name: Build APK
