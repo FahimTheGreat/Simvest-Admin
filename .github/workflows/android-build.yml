@@ -2,8 +2,8 @@ name: "Build Android"
 
 on: workflow_dispatch
 
-jobs:  
-  build:      
+jobs:
+  build:
     name: Build Android
     runs-on: ubuntu-latest
 
@@ -20,5 +20,14 @@ jobs:
       - run: flutter pub get
       - run: flutter test
       - run: flutter build apk
+      - name: Archive APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: apk-build
+          path: build/app/outputs/apk/release/app-release.apk
       - run: flutter build appbundle
-        
+      - name: Archive App Bundle
+        uses: actions/upload-artifact@v3
+        with:
+          name: appbundle-build
+          path: build/app/outputs/bundle/release/app-release.aab
