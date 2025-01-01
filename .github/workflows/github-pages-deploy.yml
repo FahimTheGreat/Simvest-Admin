@@ -3,7 +3,7 @@
 
 name: Flutter Build, Deploy to github pages
 
-on: workflow-dispatch
+on: workflow_dispatch
 
 permissions: write-all
 
