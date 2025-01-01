@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+        #1 Clone and Build
       - name: Clone repository
         uses: actions/checkout@v4
       - uses: actions/setup-java@v1
@@ -30,58 +31,46 @@ jobs:
           name: apk-build
           path: build/app/outputs/apk/release/app-release.apk
       - run: flutter build appbundle
-      - name: Archive App Bundle
+
+        #2 Upload Artifacts
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: appbundle-build
-          path: build/app/outputs/bundle/release/app-release.aab
+          name: Releases
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
 
-  release:
-    name: Create Release
-    needs: build # this job must come after the build job
-    runs-on: ubuntu-latest
-    permissions:
-        contents: write # give permissions to create release
-    if: startsWith(github.ref, 'refs/tags/') # Only run on tags
-    steps:
-      - name: Download APK Artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: apk-build
-          path: apk
-      - name: Download App Bundle Artifact
-        uses: actions/download-artifact@v3
+        #3 Extract Version
+      - name: Extract version from pubspec.yaml
+        id: extract_version
+        run: |
+          version=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2 | tr -d '\r')
+          echo "VERSION=$version" >> $GITHUB_ENV
 
-        with:
-          name: appbundle-build
-          path: appbundle
+        #4 Check if Tag Exists
+      - name: Check if Tag Exists
+        id: check_tag
+        run: |
+          if git rev-parse "v${{ env.VERSION }}" >/dev/null 2>&1; then
+            echo "TAG_EXISTS=true" >> $GITHUB_ENV
+          else
+            echo "TAG_EXISTS=false" >> $GITHUB_ENV
+          fi
+
+        #5 Modify Tag if it Exists
+      - name: Modify Tag
+        if: env.TAG_EXISTS == 'true'
+        id: modify_tag
+        run: |
+          new_version="${{ env.VERSION }}-build-${{ github.run_number }}"
+          echo "VERSION=$new_version" >> $GITHUB_ENV
+        
+        #6 Create Release
       - name: Create Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: |
-            Release created from tag ${{ github.ref }}
-            This release includes an APK and an App Bundle.
-          draft: false
-          prerelease: false
-      - name: Upload APK Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./apk/app-release.apk
-          asset_name: app-release.apk
-          asset_content_type: application/vnd.android.package-archive
-      - name: Upload App Bundle Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./appbundle/app-release.aab
-          asset_name: app-release.aab
-          asset_content_type: application/octet-stream
+          artifacts: "build/app/outputs/flutter-apk/app-release.apk,build/app/outputs/bundle/release/app-release.aab"
+          tag: v${{ env.VERSION }}
+
+      
